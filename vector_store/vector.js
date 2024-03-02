@@ -2,6 +2,7 @@ import Docxtemplater from "docxtemplater";
 import fs from "fs";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { writeFile } from "fs/promises";
+import path from "path"; // Import the path module
 
 function parseDocx(fileContent) {
     const doc = new Docxtemplater();
@@ -82,18 +83,18 @@ class CharacterTextSplitter {
 }
 
 function getFilename(filePath) {
-    return filePath.split('/').pop();
+    return path.basename(filePath); // Use path.basename() to get the filename
 }
 
 export async function setupDataAndVectorStore(filePaths, openAIApiKey) {
     try {
         const texts = [];
         await Promise.all(filePaths.map(async filePath => {
-            const extension = filePath.split('.').pop();
-            if (extension === 'docx') {
+            const extension = path.extname(filePath); // Use path.extname() to get the file extension
+            if (extension === '.docx') { // Compare with '.docx' instead of 'docx'
                 const text = await loadFilesFromDocx(filePath);
                 texts.push(new Mail(text, { filename: getFilename(filePath) }));
-            } else if (extension === 'txt') {
+            } else if (extension === '.txt') { // Compare with '.txt' instead of 'txt'
                 const text = await loadFilesFromText(filePath);
                 texts.push(new Mail(text, { filename: getFilename(filePath) }));
             } else {

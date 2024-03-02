@@ -8,6 +8,7 @@ import {
     ChatPromptTemplate,
     MessagesPlaceholder,
 } from "@langchain/core/prompts";
+import path from "path"; // Import the path module
 
 class Mail {
     constructor(page_content, metadata = {}) {
@@ -34,7 +35,8 @@ class VectorStore {
 
     loadData(jsonPath) {
         try {
-            this.data = JSON.parse(readFileSync(jsonPath, 'utf8'));
+            const resolvedPath = path.resolve(__dirname, jsonPath); // Resolve the JSON path
+            this.data = JSON.parse(readFileSync(resolvedPath, 'utf8')); // Read the file using the resolved path
             this.dimension = this.data[0]['vector'].length;
         } catch (error) {
             console.error("Error loading vector data:", error);
