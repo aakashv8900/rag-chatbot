@@ -1,14 +1,6 @@
-import { readFileSync } from 'fs';
-import { IndexFlatL2, float32 } from 'faiss';
-import { ChatOpenAI } from "@langchain/openai";
-import { ConversationSummaryBufferMemory } from "langchain/memory";
-import { ConversationChain } from "langchain/chains";
-import { OpenAIEmbeddings } from "@langchain/openai";
-import {
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-} from "@langchain/core/prompts";
-import path from "path"; // Import the path module
+const { readFileSync } = require('fs');
+const { IndexFlatL2, float32 } = require('faiss-node');
+const path = require('path');
 
 class Mail {
     constructor(page_content, metadata = {}) {
@@ -68,45 +60,4 @@ class VectorStore {
     }
 }
 
-const vectorStore = new VectorStore('./vector.json');
-
-export async function queryWithConversationChain(query, model, temperature, topK, prompt, maxMemoryToken, openAIApiKey) {
-    try {
-        const llm = new ChatOpenAI({ temperature: temperature ? temperature : 0.7, model_name: model ? model : "gpt-4" });
-        const embeddings = new OpenAIEmbeddings({ openAIApiKey: openAIApiKey });
-        let userVector = embeddings.embedQuery(query);
-        const expectedDimensions = vectorStore.dimension;
-        if (userVector.length > expectedDimensions) {
-            userVector = userVector.slice(0, expectedDimensions);
-        } else if (userVector.length < expectedDimensions) {
-            userVector = userVector.concat(Array(expectedDimensions - userVector.length).fill(0));
-        }
-        userVector = userVector.map(x => parseFloat(x));
-        const search_data = [userVector];
-        const docsAndScores = vectorStore.queryVectorStore(search_data, topK ? topK : 3);
-        const mostRelevantDoc = docsAndScores.map(hit => hit.page_content);
-        const serializedDicts = Array.from(new Set(docsAndScores.map(hit => JSON.stringify(hit.metadata))));
-        const metadata = serializedDicts.map(d => JSON.parse(d));
-        const context = mostRelevantDoc.join(" ");
-        const chatPrompt = ChatPromptTemplate.fromMessages([
-            [
-                "system",
-                `You are a customer support chatbot which represents an agent. Use your knowledge base to best respond to customer's queries. Based on our knowledge base, particularly focusing on relevant information we found: '${context}'.`,
-            ],
-            new MessagesPlaceholder("history"),
-            ["human", "{input}"],
-        ]);
-        const memory = new ConversationSummaryBufferMemory({
-            llm: llm,
-            maxTokenLimit: maxMemoryToken ? maxMemoryToken : 10,
-        });
-        const conversation = new ConversationChain({ llm, verbose: true, memory: memory, prompt: prompt ? prompt : chatPrompt });
-        const response = await conversation.call({
-            input: query,
-        });
-        return [response['response'], metadata];
-    } catch (error) {
-        console.error("An error occurred during queryWithConversationChain:", error);
-        throw error;
-    }
-}
+module.exports = { VectorStore };

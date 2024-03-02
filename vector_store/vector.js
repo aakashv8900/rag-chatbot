@@ -1,8 +1,8 @@
-import Docxtemplater from "docxtemplater";
-import fs from "fs";
-import { OpenAIEmbeddings } from "@langchain/openai";
-import { writeFile } from "fs/promises";
-import path from "path"; // Import the path module
+const Docxtemplater = require('docxtemplater');
+const fs = require('fs');
+const { OpenAIEmbeddings } = require('@langchain/openai');
+const { writeFile } = require('fs').promises;
+const path = require('path');
 
 function parseDocx(fileContent) {
     const doc = new Docxtemplater();
@@ -86,8 +86,9 @@ function getFilename(filePath) {
     return path.basename(filePath); // Use path.basename() to get the filename
 }
 
-export async function setupDataAndVectorStore(filePaths, openAIApiKey) {
+async function setupDataAndVectorStore(filePaths, openAIApiKey) {
     try {
+        console.log(filePaths, openAIApiKey, "keyyyyyyyyyyyyy")
         const texts = [];
         await Promise.all(filePaths.map(async filePath => {
             const extension = path.extname(filePath); // Use path.extname() to get the file extension
@@ -110,10 +111,12 @@ export async function setupDataAndVectorStore(filePaths, openAIApiKey) {
             description: splitTexts[index].pageContent,
             filename: splitTexts[index].metadata
         }));
-        await writeFile("./vectors.json", JSON.stringify(embeddingsWithFilenames, null, 2));
+        await writeFile(path.join(__dirname, 'vectors.json'), JSON.stringify(embeddingsWithFilenames, null, 2));
         console.log(`Embeddings saved to vector.json`);
     } catch (error) {
         console.error("An error occurred during setupDataAndVectorStore:", error);
         throw error;
     }
 }
+
+module.exports = { setupDataAndVectorStore };
