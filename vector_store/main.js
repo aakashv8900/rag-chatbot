@@ -1,5 +1,5 @@
-const { readFileSync } = require('fs');
-const { IndexFlatL2, float32 } = require('faiss-node');
+const fs = require('fs');
+const { IndexFlatL2 } = require('faiss-node');
 const path = require('path');
 
 class Mail {
@@ -28,7 +28,7 @@ class VectorStore {
     loadData(jsonPath) {
         try {
             const resolvedPath = path.resolve(__dirname, jsonPath); // Resolve the JSON path
-            this.data = JSON.parse(readFileSync(resolvedPath, 'utf8')); // Read the file using the resolved path
+            this.data = JSON.parse(fs.readFileSync(resolvedPath, 'utf8')); // Read the file using the resolved path
             this.dimension = this.data[0]['vector'].length;
         } catch (error) {
             console.error("Error loading vector data:", error);
@@ -39,8 +39,7 @@ class VectorStore {
     createIndex() {
         try {
             this.index = new IndexFlatL2(this.dimension);
-            const vectors = this.data.map(item => item['vector']);
-            this.index.add(float32(vectors.flat()));
+        const vectors = this.data.map(item => this.index.add(item.vector));
         } catch (error) {
             console.error("Error creating index:", error);
             throw error;
@@ -49,10 +48,8 @@ class VectorStore {
 
     queryVectorStore(queryVector, k = 3) {
         try {
-            queryVector = float32(queryVector.flat());
-            const { distances, indices } = this.index.search(queryVector, k);
-            console.log(distances, indices);
-            return indices.flat().map(idx => new Mail(this.data[idx]['description'], this.data[idx]['metadata']));
+            const { distances, labels } = this.index.search(queryVector, k);
+            return labels.map(idx => new Mail(this.data[idx]['description'], this.data[idx]['filename']));
         } catch (error) {
             console.error("Error querying vector store:", error);
             throw error;
@@ -60,4 +57,23 @@ class VectorStore {
     }
 }
 
-module.exports = { VectorStore };
+async function initializeVectorStore() {
+    const vectorFilePath = path.join(__dirname, './vectors.json');
+    try {
+        await fs.promises.access(vectorFilePath); // Wait for the file access check
+        const stats = await fs.promises.stat(vectorFilePath); // Wait for file stats retrieval
+        if (stats.size > 0) {
+            const vectorStore = new VectorStore(vectorFilePath);
+            console.log("VectorStore initialized successfully.");
+            return vectorStore;
+        } else {
+            console.error("Vector data file 'vectors.json' exists but is empty. Please check the file content.");
+        }
+    } catch (err) {
+        console.error("Error accessing vector data file:", err);
+        console.error("Vector data file 'vectors.json' does not exist. Please call setupDataAndVectorStoreOnce() first.");
+    }
+}
+
+
+module.exports = { initializeVectorStore };

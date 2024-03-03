@@ -3,17 +3,7 @@ const fs = require('fs');
 const { OpenAIEmbeddings } = require('@langchain/openai');
 const { writeFile } = require('fs').promises;
 const path = require('path');
-
-function parseDocx(fileContent) {
-    const doc = new Docxtemplater();
-    try {
-        doc.loadZip(fileContent);
-    } catch (error) {
-        console.error("Error loading zip file:", error);
-        throw error;
-    }
-    return doc;
-}
+const mammoth = require("mammoth");
 
 async function loadFilesFromText(filePath) {
     try {
@@ -28,28 +18,9 @@ async function loadFilesFromText(filePath) {
 
 async function loadFilesFromDocx(filePath) {
     try {
-        const fileContent = await fs.promises.readFile(filePath, "binary");
-        const doc = parseDocx(fileContent);
-
-        let texts = "";
-
-        for (let paragraph of doc.paragraphs) {
-            if (paragraph.text) {
-                texts += paragraph.text + " ";
-            }
-        }
-        for (let table of doc.tables) {
-            for (let row of table.rows) {
-                for (let cell of row.cells) {
-                    for (let paragraph of cell.paragraphs) {
-                        if (paragraph.text) {
-                            texts += paragraph.text + " ";
-                        }
-                    }
-                }
-            }
-        }
-        return texts;
+        const fileContent = await fs.promises.readFile(filePath);
+        const result = await mammoth.extractRawText({ buffer: fileContent });
+        return result.value.trim();
     } catch (error) {
         console.error("Error reading or parsing the .docx file:", error);
         throw error;
@@ -88,7 +59,6 @@ function getFilename(filePath) {
 
 async function setupDataAndVectorStore(filePaths, openAIApiKey) {
     try {
-        console.log(filePaths, openAIApiKey, "keyyyyyyyyyyyyy")
         const texts = [];
         await Promise.all(filePaths.map(async filePath => {
             const extension = path.extname(filePath); // Use path.extname() to get the file extension

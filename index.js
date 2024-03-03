@@ -1,16 +1,14 @@
 const { setupDataAndVectorStore } = require('./vector_store/vector.js');
-const { VectorStore } = require('./vector_store/main.js'); // Import VectorStore class
+const { initializeVectorStore } = require('./vector_store/main.js'); // Import VectorStore class
 const { ChatOpenAI } = require('@langchain/openai');
 const { ConversationSummaryBufferMemory } = require('langchain/memory');
 const { ConversationChain } = require('langchain/chains');
 const { OpenAIEmbeddings } = require('@langchain/openai');
 const {
     ChatPromptTemplate,
-    MessagesPlaceholder,
 } = require('@langchain/core/prompts');
 const path = require('path');
-
-let vectorStoreSetup = false;
+const fs = require('fs');
 
 /**
  * Function to setup data and vector store.
@@ -18,7 +16,6 @@ let vectorStoreSetup = false;
  */
 function setupDataAndVectorStoreOnce(filePaths, openAIApiKey) {
     setupDataAndVectorStore(filePaths, openAIApiKey);
-    vectorStoreSetup = true;
 }
 
 /**
@@ -26,23 +23,12 @@ function setupDataAndVectorStoreOnce(filePaths, openAIApiKey) {
  * This function can be called multiple times by the user.
  * @param {string} userQuery - The query entered by the user.
  */
-async function userQueryWithConversationChain(query, model, temperature, topK, prompt, maxMemoryToken, openAIApiKey) {
-    console.log("here")
-    if (!vectorStoreSetup) {
-        console.error("Vector store is not set up. Please call setupDataAndVectorStoreOnce() first.");
-        return;
-    }
+async function userQueryWithConversationChain(query, openAIApiKey, model, temperature, topK, prompt, maxMemoryToken) {
     try {
-        let vectorStore;
-        if (fs.existsSync(path.join(__dirname, './vector_store/vector.json'))) {
-            vectorStore = new VectorStore(path.join(__dirname, './vector_store/vector.json')); // Initialize VectorStore
-        } else {
-            console.error("Vector data file 'vector.json' does not exist. Please call setupDataAndVectorStoreOnce() first.");
-            return;
-        }
-        const llm = new ChatOpenAI({ temperature: temperature ? temperature : 0.7, model_name: model ? model : "gpt-4" });
+        let vectorStore = await initializeVectorStore()
+        const llm = new ChatOpenAI({ temperature: temperature ? temperature : 0.7, model_name: model ? model : "gpt-4", openAIApiKey: openAIApiKey });
         const embeddings = new OpenAIEmbeddings({ openAIApiKey: openAIApiKey });
-        let userVector = embeddings.embedQuery(query);
+        let userVector = await embeddings.embedQuery(query);
         const expectedDimensions = vectorStore.dimension;
         if (userVector.length > expectedDimensions) {
             userVector = userVector.slice(0, expectedDimensions);
@@ -50,8 +36,7 @@ async function userQueryWithConversationChain(query, model, temperature, topK, p
             userVector = userVector.concat(Array(expectedDimensions - userVector.length).fill(0));
         }
         userVector = userVector.map(x => parseFloat(x));
-        const search_data = [userVector];
-        const docsAndScores = vectorStore.queryVectorStore(search_data, topK ? topK : 3);
+        const docsAndScores = await vectorStore.queryVectorStore(userVector, topK ? topK : 3);
         const mostRelevantDoc = docsAndScores.map(hit => hit.page_content);
         const serializedDicts = Array.from(new Set(docsAndScores.map(hit => JSON.stringify(hit.metadata))));
         const metadata = serializedDicts.map(d => JSON.parse(d));
@@ -61,7 +46,6 @@ async function userQueryWithConversationChain(query, model, temperature, topK, p
                 "system",
                 `You are a customer support chatbot which represents an agent. Use your knowledge base to best respond to customer's queries. Based on our knowledge base, particularly focusing on relevant information we found: '${context}'.`,
             ],
-            new MessagesPlaceholder("history"),
             ["human", "{input}"],
         ]);
         const memory = new ConversationSummaryBufferMemory({
