@@ -1,6 +1,6 @@
 {
   "name": "rag-chatbot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Rag chatbot for business",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,14 @@
     "url": "git+https://github.com/aakashv8900/rag-chatbot.git"
   },
   "keywords": [
-    "RCB"
+    "rag",
+    "chatbot",
+    "openai",
+    "langchain",
+    "embeddings",
+    "vector",
+    "faiss",
+    "assistantai"
   ],
   "author": "Aakash",
   "license": "ISC",

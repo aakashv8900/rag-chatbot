@@ -56,7 +56,7 @@ async function userQueryWithConversationChain(query, openAIApiKey, model, temper
         const response = await conversation.call({
             input: query,
         });
-        return [response['response'], metadata];
+        return response['response'], metadata;
     } catch (error) {
         console.error("An error occurred during userQueryWithConversationChain:", error);
         throw error;
