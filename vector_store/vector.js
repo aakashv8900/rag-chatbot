@@ -1,4 +1,3 @@
-const Docxtemplater = require('docxtemplater');
 const fs = require('fs');
 const { OpenAIEmbeddings } = require('@langchain/openai');
 const { writeFile } = require('fs').promises;
